@@ -1,0 +1,116 @@
+#!/bin/bash
+
+# list pipeline & select one
+function pipeline_list () {
+    mapfile -t pipelines <<< `tkn p list | grep -v '^NAME' | awk '{print $1}'`
+    PS3="Select Pipeline (or 'q' to quit)> "
+    select PIPELINE in "${pipelines[@]}"
+    do
+        if [ "${REPLY}" = "q" ]; then
+            exit 0
+        elif [ -n "$PIPELINE" ]; then
+            break
+        fi
+    done
+}
+
+# list pipelinerun & select one
+function pipelinerun_list () {
+  mapfile -t list <<< `tkn pr list --label tekton.dev/pipeline=$PIPELINE -o json | jq -r '.items | .[] | .metadata | select(has("generateName")|not) | .name'`
+  if [ -z "${list[0]}" ]; then
+      echo "No PipelineRun to match '$PIPELINE'. Exit"
+      exit 1
+  elif [ ${list[0]} = "No" ]; then
+      echo "No Pipeline: $PIPELINE. Exit"
+      exit 1
+  fi
+
+  PS3='Select PipelineRun (or 'q' to quit)> '
+  select PR in "${list[@]}"
+  do
+      if [ "${REPLY}" = "q" ]; then
+          exit 0
+      elif [ -n "$PR" ]; then
+          break
+      fi
+  done
+}
+
+function task_list () {
+    mapfile -t tasks <<< `tkn task list | grep -v '^NAME' | awk '{print $1}'`
+    PS3="Select Task (or 'q' to quit)> "
+    select TASK in "${tasks[@]}"
+    do
+        if [ "${REPLY}" = "q" ]; then
+            exit 0
+        elif [ -n "$TASK" ]; then
+            break
+        fi
+    done
+}
+
+function taskrun_list () {
+    # exclude invoked from pipelines or generated with previous Taskrun.
+    mapfile -t list <<< `tkn tr list --label tekton.dev/task=$TASK -o json | jq -r '.items | .[] | .metadata | select(has("generateName")|not) | select(.labels | has("tekton.dev/pipeline")|not) | .name'`
+    if [ -z "${list[0]}" ]; then
+        echo "No TaskRun to match '$TASK'. Exit"
+        exit 1
+    elif [ ${list[0]} = "No" ]; then
+        echo "No Task: $TASK. Exit"
+        exit 1
+    fi
+
+    PS3='Select TaskRun (or 'q' to quit)> '
+    select TASKRUN in "${list[@]}"
+    do
+        if [ "${REPLY}" = "q" ]; then
+            exit 0
+        elif [ -n "$TASKRUN" ]; then
+            break
+        fi
+    done
+}
+
+# check if tkn installed
+# https://github.com/tektoncd/cli
+tkn version 2&> /dev/null
+if [ $? -ne 0 ]; then
+    echo "Tekton CLI not found. exit"
+    exit 1
+fi
+
+# check if jq installed
+# https://stedolan.github.io/jq/
+jq --version 2&> /dev/null
+if [ $? -ne 0 ]; then
+  echo "jq not found. exit"
+  exit 1
+fi
+
+set -eu
+
+if [ $# -lt 1 ]; then
+    pipeline_list
+else
+  if [ $1 == "-h" ]; then
+      echo "Usage: tkn runner [options] [<pipeline or task name>]"
+      echo "Options:"
+      echo "    -t    Use task & taskrun instead of pipeline"
+      echo "    -h    Show this usage"
+    exit 1
+  elif [ $1 == "-t" ]; then
+      if [ $# -lt 2 ]; then
+        task_list
+      else
+        TASK=$2
+      fi
+      taskrun_list
+      tkn task start $TASK --use-taskrun $TASKRUN
+      exit 0
+  else
+    PIPELINE=$1
+  fi
+fi
+
+pipelinerun_list
+tkn pipeline start $PIPELINE --use-pipelinerun $PR
