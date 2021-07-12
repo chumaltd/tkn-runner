@@ -2,7 +2,13 @@
 
 # list pipeline & select one
 function pipeline_list () {
-    mapfile -t pipelines <<< `tkn p list | grep -v '^NAME' | awk '{print $1}'`
+    mapfile -t pipelines <<< `tkn p list $NS_OPT | grep -v '^NAME' | awk '{print $1}'`
+    if [ ${pipelines[0]} = "No" ]; then
+        echo "No Pipeline found. Exit"
+        exit 1
+    fi
+
+    echo ""
     PS3="Select Pipeline (or 'q' to quit)> "
     select PIPELINE in "${pipelines[@]}"
     do
@@ -16,28 +22,35 @@ function pipeline_list () {
 
 # list pipelinerun & select one
 function pipelinerun_list () {
-  mapfile -t list <<< `tkn pr list --label tekton.dev/pipeline=$PIPELINE -o json | jq -r '.items | .[] | .metadata | select(has("generateName")|not) | .name'`
-  if [ -z "${list[0]}" ]; then
-      echo "No PipelineRun to match '$PIPELINE'. Exit"
-      exit 1
-  elif [ ${list[0]} = "No" ]; then
-      echo "No Pipeline: $PIPELINE. Exit"
-      exit 1
-  fi
+    mapfile -t list <<< `tkn pr list $NS_OPT --label tekton.dev/pipeline=$PIPELINE -o json | jq -r '.items | .[] | .metadata | select(has("generateName")|not) | .name'`
+    if [ -z "${list[0]}" ]; then
+        echo "No PipelineRun to match '$PIPELINE'. Exit"
+        exit 1
+    elif [ ${list[0]} = "No" ]; then
+        echo "No Pipeline: $PIPELINE. Exit"
+        exit 1
+    fi
 
-  PS3='Select PipelineRun (or 'q' to quit)> '
-  select PR in "${list[@]}"
-  do
-      if [ "${REPLY}" = "q" ]; then
-          exit 0
-      elif [ -n "$PR" ]; then
-          break
-      fi
-  done
+    echo ""
+    PS3='Select PipelineRun (or 'q' to quit)> '
+    select PR in "${list[@]}"
+    do
+        if [ "${REPLY}" = "q" ]; then
+            exit 0
+        elif [ -n "$PR" ]; then
+            break
+        fi
+    done
 }
 
 function task_list () {
-    mapfile -t tasks <<< `tkn task list | grep -v '^NAME' | awk '{print $1}'`
+    mapfile -t tasks <<< `tkn task list $NS_OPT | grep -v '^NAME' | awk '{print $1}'`
+    if [ ${tasks[0]} = "No" ]; then
+        echo "No Task found. Exit"
+        exit 1
+    fi
+
+    echo ""
     PS3="Select Task (or 'q' to quit)> "
     select TASK in "${tasks[@]}"
     do
@@ -51,7 +64,7 @@ function task_list () {
 
 function taskrun_list () {
     # exclude invoked from pipelines or generated with previous Taskrun.
-    mapfile -t list <<< `tkn tr list --label tekton.dev/task=$TASK -o json | jq -r '.items | .[] | .metadata | select(has("generateName")|not) | select(.labels | has("tekton.dev/pipeline")|not) | .name'`
+    mapfile -t list <<< `tkn tr list $NS_OPT --label tekton.dev/task=$TASK -o json | jq -r '.items | .[] | .metadata | select(has("generateName")|not) | select(.labels | has("tekton.dev/pipeline")|not) | .name'`
     if [ -z "${list[0]}" ]; then
         echo "No TaskRun to match '$TASK'. Exit"
         exit 1
@@ -60,6 +73,7 @@ function taskrun_list () {
         exit 1
     fi
 
+    echo ""
     PS3='Select TaskRun (or 'q' to quit)> '
     select TASKRUN in "${list[@]}"
     do
@@ -69,6 +83,17 @@ function taskrun_list () {
             break
         fi
     done
+}
+
+function show_usage () {
+    echo ""
+    echo "Usage: tkn runner [options] [<pipeline or task name>]"
+    echo "Options:"
+    echo "   -n <namespace>   Specify namespace"
+    echo "   -t               Use task & taskrun instead of pipeline"
+    echo "   -h               Show this usage"
+    echo ""
+    exit 1
 }
 
 # check if tkn installed
@@ -89,28 +114,35 @@ fi
 
 set -eu
 
-if [ $# -lt 1 ]; then
-    pipeline_list
-else
-  if [ $1 == "-h" ]; then
-      echo "Usage: tkn runner [options] [<pipeline or task name>]"
-      echo "Options:"
-      echo "    -t    Use task & taskrun instead of pipeline"
-      echo "    -h    Show this usage"
-    exit 1
-  elif [ $1 == "-t" ]; then
-      if [ $# -lt 2 ]; then
-        task_list
-      else
-        TASK=$2
-      fi
-      taskrun_list
-      tkn task start $TASK --use-taskrun $TASKRUN
-      exit 0
-  else
-    PIPELINE=$1
-  fi
-fi
+RUN_MODE="pipeline"
+NS_OPT=""
 
-pipelinerun_list
-tkn pipeline start $PIPELINE --use-pipelinerun $PR
+while getopts hn:t OPT
+do
+    case $OPT in
+        "h" ) show_usage ;;
+        "n" ) NS_OPT="-n $OPTARG" ;;
+        "t" ) RUN_MODE="task" ;;
+    esac
+done
+
+shift $(expr $OPTIND - 1)
+
+if [ $RUN_MODE = "task" ]; then
+    if [ $# -lt 1 ]; then
+        task_list
+    else
+        TASK=$1
+    fi
+    taskrun_list
+    tkn task start $TASK $NS_OPT --use-taskrun $TASKRUN
+    exit 0
+else
+    if [ $# -lt 1 ]; then
+        pipeline_list
+    else
+        PIPELINE=$1
+    fi
+    pipelinerun_list
+    tkn pipeline start $PIPELINE $NS_OPT --use-pipelinerun $PR
+fi
