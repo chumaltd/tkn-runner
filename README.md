@@ -56,3 +56,5 @@ FAQ
 
 * PipelineRun/TaskRun doesn't list.
   * `tkn runner` only lists which are created with `kubectl apply`. Duplicated PipelineRuns/TaskRuns will be filtered by design.
+* I cannot list pipelines.
+  * Use `tkn p list` directly. It's enough.
