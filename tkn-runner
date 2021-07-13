@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VERSION="1.0"
+
 # list pipeline & select one
 function pipeline_list () {
     mapfile -t pipelines <<< `tkn p list $NS_OPT | grep -v '^NAME' | awk '{print $1}'`
@@ -87,11 +89,14 @@ function taskrun_list () {
 
 function show_usage () {
     echo ""
-    echo "Usage: tkn runner [options] [<pipeline or task name>]"
-    echo "Options:"
-    echo "   -n <namespace>   Specify namespace"
-    echo "   -t               Use task & taskrun instead of pipeline"
-    echo "   -h               Show this usage"
+    echo "tkn-runner version $VERSION"
+    echo "  Usage:    tkn runner [options] [<pipeline or task name>]"
+    echo "  Options:"
+    echo "            -d               run 'describe' subcommand"
+    echo "            -l               run 'logs' subcommand"
+    echo "            -n <namespace>   Specify namespace"
+    echo "            -t               Use task instead of pipeline"
+    echo "            -h               Show this usage"
     echo ""
     exit 1
 }
@@ -114,12 +119,16 @@ fi
 
 set -eu
 
+# set default
 RUN_MODE="pipeline"
+TKN_CMD="start"
 NS_OPT=""
 
-while getopts hn:t OPT
+while getopts dlhn:t OPT
 do
     case $OPT in
+        "d" ) TKN_CMD="describe" ;;
+        "l" ) TKN_CMD="logs" ;;
         "h" ) show_usage ;;
         "n" ) NS_OPT="-n $OPTARG" ;;
         "t" ) RUN_MODE="task" ;;
@@ -134,8 +143,11 @@ if [ $RUN_MODE = "task" ]; then
     else
         TASK=$1
     fi
-    taskrun_list
-    tkn task start $TASK $NS_OPT --use-taskrun $TASKRUN
+    case "$TKN_CMD" in
+        "start" ) taskrun_list
+                  tkn task start $TASK $NS_OPT --use-taskrun $TASKRUN ;;
+        "describe" | "logs" ) tkn task $TKN_CMD $TASK ;;
+    esac
     exit 0
 else
     if [ $# -lt 1 ]; then
@@ -143,6 +155,9 @@ else
     else
         PIPELINE=$1
     fi
-    pipelinerun_list
-    tkn pipeline start $PIPELINE $NS_OPT --use-pipelinerun $PR
+    case "$TKN_CMD" in
+        "start" ) pipelinerun_list
+                  tkn pipeline start $PIPELINE $NS_OPT --use-pipelinerun $PR ;;
+        "describe" | "logs" ) tkn pipeline $TKN_CMD $PIPELINE ;;
+    esac
 fi

@@ -37,7 +37,18 @@ If you want to run Task & TaskRun, use `-t` option.
 $ tkn runner -t
 ```
 
-Optionally, You can specify Pipeline/Task name.
+`tkn runner` allso supports describe|logs subcommand for pipeline|task.
+
+```bash
+# execute "tkn pipeline|task describe"
+$ tkn runner -d [-t]
+
+# execute "tkn pipeline|task logs"
+$ tkn runner -l [-t]
+```
+
+Optionally, You can specify Pipeline/Task name.  
+For options list, `tkn runner -h`.
 
 
 FAQ
