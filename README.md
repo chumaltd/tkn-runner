@@ -51,6 +51,18 @@ Optionally, You can specify Pipeline/Task name.
 For options list, `tkn runner -h`.
 
 
+### Namespace
+
+You can customize namespace setting with `TEKTON_NS` env.
+
+```bash
+$ export TEKTON_NS=tekton
+$ tkn-runner
+
+# You can override with -n option
+$ tkn-runner -n tekton
+```
+
 FAQ
 --------
 

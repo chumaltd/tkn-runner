@@ -122,7 +122,11 @@ set -eu
 # set default
 RUN_MODE="pipeline"
 TKN_CMD="start"
-NS_OPT=""
+if [ -n "$TEKTON_NS" ]; then
+  NS_OPT="-n $TEKTON_NS"
+else
+  NS_OPT=""
+fi
 
 while getopts dlhn:t OPT
 do
