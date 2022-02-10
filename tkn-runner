@@ -92,6 +92,7 @@ function show_usage () {
     echo "tkn-runner version $VERSION"
     echo "  Usage:    tkn runner [options] [<pipeline or task name>]"
     echo "  Options:"
+    echo "            --showlog        show logs right after starting the Pipeline|Task"
     echo "            -d               run 'describe' subcommand"
     echo "            -l               run 'logs' subcommand"
     echo "            -n <namespace>   Specify namespace"
@@ -122,20 +123,25 @@ set -eu
 # set default
 RUN_MODE="pipeline"
 TKN_CMD="start"
+LOG_OPT=""
 if [ -v TEKTON_NS ]; then
   NS_OPT="-n $TEKTON_NS"
 else
   NS_OPT=""
 fi
 
-while getopts dlhn:t OPT
+while getopts dlhn:t-: OPT
 do
+    if [[ "$OPT" = - ]]; then
+      OPT="$OPTARG"
+    fi
     case $OPT in
         "d" ) TKN_CMD="describe" ;;
         "l" ) TKN_CMD="logs" ;;
         "h" ) show_usage ;;
         "n" ) NS_OPT="-n $OPTARG" ;;
         "t" ) RUN_MODE="task" ;;
+        "showlog" ) LOG_OPT="--showlog" ;;
     esac
 done
 
@@ -149,7 +155,7 @@ if [ $RUN_MODE = "task" ]; then
     fi
     case "$TKN_CMD" in
         "start" ) taskrun_list
-                  tkn task start $TASK $NS_OPT --use-taskrun $TASKRUN ;;
+                  tkn task start $TASK $NS_OPT $LOG_OPT --use-taskrun $TASKRUN ;;
         "describe" | "logs" ) tkn task $TKN_CMD $TASK ;;
     esac
     exit 0
@@ -161,7 +167,7 @@ else
     fi
     case "$TKN_CMD" in
         "start" ) pipelinerun_list
-                  tkn pipeline start $PIPELINE $NS_OPT --use-pipelinerun $PR ;;
+                  tkn pipeline start $PIPELINE $NS_OPT $LOG_OPT --use-pipelinerun $PR ;;
         "describe" | "logs" ) tkn pipeline $TKN_CMD $PIPELINE ;;
     esac
 fi
