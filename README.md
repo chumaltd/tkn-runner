@@ -63,6 +63,7 @@ $ tkn-runner
 $ tkn-runner -n tekton
 ```
 
+
 FAQ
 --------
 
@@ -70,3 +71,10 @@ FAQ
   * `tkn runner` only lists which are created with `kubectl apply`. Duplicated PipelineRuns/TaskRuns will be filtered by design.
 * I cannot list pipelines.
   * Use `tkn p list` directly. It's enough.
+
+
+For Kubernetes Job
+--------
+
+As a vanilla k8s flavor, there is a kubectl plugion [kubectl-pick-job](https://github.com/chumaltd/kubectl-pick-job).  
+If you have pipelines triggered by CronJob, you can reuse entire settings as a one time job.
