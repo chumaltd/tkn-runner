@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="1.0"
+VERSION="1.1"
 
 # list pipeline & select one
 function pipeline_list () {
@@ -93,9 +93,11 @@ function show_usage () {
     echo "  Usage:    tkn runner [options] [<pipeline or task name>]"
     echo "  Options:"
     echo "            --showlog        show logs right after starting the Pipeline|Task"
+    echo "            --dry-run        preview PipelineRun|TaskRun without running it"
     echo "            -d               run 'describe' subcommand"
     echo "            -l               run 'logs' subcommand"
     echo "            -n <namespace>   Specify namespace"
+    echo '            -p <stringArray> pass the param as key=value for string type, or key=value1,value2,... for array type, or key="key1:value1, key2:value2" for object type'
     echo "            -t               Use task instead of pipeline"
     echo "            -h               Show this usage"
     echo ""
@@ -124,13 +126,14 @@ set -eu
 RUN_MODE="pipeline"
 TKN_CMD="start"
 LOG_OPT=""
+RUN_OPT=""
 if [ -v TEKTON_NS ]; then
   NS_OPT="-n $TEKTON_NS"
 else
   NS_OPT=""
 fi
 
-while getopts dlhn:t-: OPT
+while getopts dlhn:p:t-: OPT
 do
     if [[ "$OPT" = - ]]; then
       OPT="$OPTARG"
@@ -140,8 +143,10 @@ do
         "l" ) TKN_CMD="logs" ;;
         "h" ) show_usage ;;
         "n" ) NS_OPT="-n $OPTARG" ;;
+        "p" ) RUN_OPT="$RUN_OPT -p $OPTARG" ;;
         "t" ) RUN_MODE="task" ;;
-        "showlog" ) LOG_OPT="--showlog" ;;
+        "showlog" ) LOG_OPT="$LOG_OPT --showlog" ;;
+        "dry-run" ) LOG_OPT="$LOG_OPT --dry-run" ;;
     esac
 done
 
@@ -155,7 +160,7 @@ if [ $RUN_MODE = "task" ]; then
     fi
     case "$TKN_CMD" in
         "start" ) taskrun_list
-                  tkn task start $TASK $NS_OPT $LOG_OPT --use-taskrun $TASKRUN ;;
+                  tkn task start $TASK $NS_OPT $LOG_OPT $RUN_OPT --use-taskrun $TASKRUN ;;
         "describe" | "logs" ) tkn task $TKN_CMD $TASK ;;
     esac
     exit 0
@@ -167,7 +172,7 @@ else
     fi
     case "$TKN_CMD" in
         "start" ) pipelinerun_list
-                  tkn pipeline start $PIPELINE $NS_OPT $LOG_OPT --use-pipelinerun $PR ;;
+                  tkn pipeline start $PIPELINE $NS_OPT $LOG_OPT $RUN_OPT --use-pipelinerun $PR ;;
         "describe" | "logs" ) tkn pipeline $TKN_CMD $PIPELINE ;;
     esac
 fi
