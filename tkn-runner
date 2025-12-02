@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="1.2"
+VERSION="1.3"
 
 # list pipeline & select one
 function pipeline_list () {
@@ -24,7 +24,7 @@ function pipeline_list () {
 
 # list pipelinerun & select one
 function pipelinerun_list () {
-    mapfile -t list <<< `tkn pr list $NS_OPT --label tekton.dev/pipeline=$PIPELINE -o json | jq -r '.items | .[] | .metadata | select(has("generateName")|not) | .name'`
+    mapfile -t list <<< `tkn pr list $NS_OPT $PIPELINE -o json | jq -r '.items | .[] | .metadata | select(has("generateName")|not) | .name'`
     if [ -z "${list[0]}" ]; then
         echo "No PipelineRun to match '$PIPELINE'. Exit"
         exit 1
@@ -66,7 +66,7 @@ function task_list () {
 
 function taskrun_list () {
     # exclude invoked from pipelines or generated with previous Taskrun.
-    mapfile -t list <<< `tkn tr list $NS_OPT --label tekton.dev/task=$TASK -o json | jq -r '.items | .[] | .metadata | select(has("generateName")|not) | select(.labels | has("tekton.dev/pipeline")|not) | .name'`
+    mapfile -t list <<< `tkn tr list $NS_OPT $TASK -o json | jq -r '.items | .[] | .metadata | select(has("generateName")|not) | select(.labels | has("tekton.dev/pipeline")|not) | .name'`
     if [ -z "${list[0]}" ]; then
         echo "No TaskRun to match '$TASK'. Exit"
         exit 1
