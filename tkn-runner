@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="1.3"
+VERSION="1.4"
 
 # list pipeline & select one
 function pipeline_list () {
@@ -87,6 +87,14 @@ function taskrun_list () {
     done
 }
 
+function show_context () {
+  which kubectl > /dev/null
+  if (( $? == 0 )); then
+    echo
+    echo "Kubernetes context: $(kubectl config current-context)"
+  fi
+}
+
 function show_usage () {
     echo ""
     echo "tkn-runner version $VERSION"
@@ -152,6 +160,7 @@ done
 
 shift $(expr $OPTIND - 1)
 
+show_context
 if [ $RUN_MODE = "task" ]; then
     if [ $# -lt 1 ]; then
         task_list
